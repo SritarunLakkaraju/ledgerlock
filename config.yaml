@@ -1,0 +1,19 @@
+seed: 42
+n_orders: 300
+settlement_cycle_days: 2
+gst_rate: 0.18
+fee_rates: { upi: 0.0, netbanking: 0.019, card_domestic: 0.02, wallet: 0.02, card_international: 0.03 }
+instant_premium: 0.0025
+tolerance: { abs_paise: 100, rel: 0.001 }      # <= Rs1.00 or <= 0.1%, whichever is smaller
+anomaly_rates:                                  # fraction of orders/settlements affected
+  partial_refund_same_settlement: 0.04
+  partial_refund_later_settlement: 0.05
+  full_refund_later_settlement: 0.02
+  multi_day_settlement: 0.30                    # of settlements
+  rounding_drift: 0.06
+  duplicate_utr: 0.02                           # of settlements
+  missing_in_bank: 0.02                         # of settlements (on_hold)
+  missing_in_settlement: 0.01                   # stray bank credits
+  orphan_order: 0.03
+  adjustment: 0.02
+  fee_variance_instant: 0.03                    # of settlements
