@@ -6,8 +6,9 @@ import { HeroMetrics } from './components/HeroMetrics'
 import { MatchAnimation } from './components/MatchAnimation'
 import { MetricsVsTruthPanel } from './components/MetricsVsTruthPanel'
 import { RunButton } from './components/RunButton'
+import { SourceDataViewer } from './components/SourceDataViewer'
 import { SourcePanel } from './components/SourcePanel'
-import type { GenerateCounts, Metrics, ReconcileSummary } from './types'
+import type { GenerateCounts, Metrics, ReconcileSummary, SourceTable } from './types'
 
 type Status = 'idle' | 'generating' | 'reconciling' | 'done' | 'error'
 type AnimStage = 'A' | 'B' | 'C' | 'done'
@@ -20,6 +21,7 @@ export default function App() {
   const [metrics, setMetrics] = useState<Metrics | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [selectedExceptionId, setSelectedExceptionId] = useState<string | null>(null)
+  const [sourceTab, setSourceTab] = useState<SourceTable | null>(null)
   const [resolved, setResolved] = useState<Set<string>>(new Set())
   const [animStage, setAnimStage] = useState<AnimStage>('A')
   const animTimers = useRef<ReturnType<typeof setTimeout>[]>([])
@@ -34,6 +36,7 @@ export default function App() {
     setSummary(null)
     setMetrics(null)
     setSelectedExceptionId(null)
+    setSourceTab(null)
     setResolved(new Set())
     clearAnimTimers()
     try {
@@ -99,15 +102,35 @@ export default function App() {
       )}
 
       <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <SourcePanel title="Orders" subtitle="merchant system of record" count={counts?.orders ?? null} accent="var(--info)" />
+        <SourcePanel
+          title="Orders"
+          subtitle="merchant system of record"
+          count={counts?.orders ?? null}
+          accent="var(--info)"
+          onClick={runId ? () => setSourceTab((t) => (t === 'orders' ? null : 'orders')) : undefined}
+          active={sourceTab === 'orders'}
+        />
         <SourcePanel
           title="Razorpay recon"
           subtitle={counts ? `${counts.payments + counts.refunds + counts.adjustments} txns across ${counts.settlements} settlements` : 'payment, refund & adjustment rows'}
           count={counts ? counts.payments + counts.refunds + counts.adjustments : null}
           accent="var(--warn)"
+          onClick={runId ? () => setSourceTab((t) => (t === 'recon' ? null : 'recon')) : undefined}
+          active={sourceTab === 'recon'}
         />
-        <SourcePanel title="Bank statement" subtitle="credit rows, keyed by UTR" count={counts?.bank_rows ?? null} accent="var(--accent)" />
+        <SourcePanel
+          title="Bank statement"
+          subtitle="credit rows, keyed by UTR"
+          count={counts?.bank_rows ?? null}
+          accent="var(--accent)"
+          onClick={runId ? () => setSourceTab((t) => (t === 'bank' ? null : 'bank')) : undefined}
+          active={sourceTab === 'bank'}
+        />
       </section>
+
+      {runId && sourceTab && (
+        <SourceDataViewer key={sourceTab} runId={runId} initialTable={sourceTab} onClose={() => setSourceTab(null)} />
+      )}
 
       {status === 'reconciling' && <MatchAnimation stage={animStage} />}
 

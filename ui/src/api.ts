@@ -4,6 +4,8 @@ import type {
   PaginatedExceptions,
   PaginatedMatches,
   ReconcileResponse,
+  SourceRows,
+  SourceTable,
 } from './types'
 
 const BASE = '/api'
@@ -46,4 +48,9 @@ export const api = {
     fetch(`${BASE}/runs/${runId}/explain/${exceptionId}`, { method: 'POST' }).then((r) => j<ExceptionDetail>(r)),
 
   exportCsvUrl: (runId: string) => `${BASE}/runs/${runId}/export.csv`,
+
+  sources: (runId: string, table: SourceTable, page = 1, pageSize = 100) => {
+    const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) })
+    return fetch(`${BASE}/runs/${runId}/sources/${table}?${params}`).then((r) => j<SourceRows>(r))
+  },
 }

@@ -155,6 +155,42 @@ def get_exceptions(run_id: str, reason: str | None = None, page: int = Query(1, 
     return {"page": page, "page_size": PAGE_SIZE, "total": len(items), "items": [e.model_dump() for e in page_items]}
 
 
+def _ensure_sources(state: RunState) -> None:
+    """Source rows are loaded during /reconcile; load them straight from the
+    generated CSVs if the caller only ran /generate so far."""
+    if state.orders or state.recon_txns or state.bank_txns:
+        return
+    orders, recon_txns, bank_txns = load_csvs(
+        state.out_dir / "orders.csv", state.out_dir / "razorpay_recon.csv", state.out_dir / "bank_statement.csv"
+    )
+    state.orders, state.recon_txns, state.bank_txns = orders, recon_txns, bank_txns
+    state.index_sources()
+
+
+_SOURCE_TABLES = {"orders": "orders", "recon": "recon_txns", "bank": "bank_txns"}
+
+
+@app.get("/runs/{run_id}/sources/{table}")
+def get_sources(
+    run_id: str,
+    table: str,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(100, ge=1, le=1000),
+):
+    """All rows of one source file -- table is 'orders', 'recon', or 'bank'."""
+    state = _require_run(run_id)
+    attr = _SOURCE_TABLES.get(table)
+    if attr is None:
+        raise HTTPException(status_code=404, detail=f"unknown source table {table!r}; use one of {sorted(_SOURCE_TABLES)}")
+    _ensure_sources(state)
+    rows = getattr(state, attr)
+    start = (page - 1) * page_size
+    page_rows = rows[start : start + page_size]
+    items = [r.model_dump(mode="json") for r in page_rows]
+    columns = list(items[0].keys()) if items else []
+    return {"table": table, "page": page, "page_size": page_size, "total": len(rows), "columns": columns, "items": items}
+
+
 def _gather_source_rows(state: RunState, entities: dict) -> dict:
     order_row = None
     if entities.get("order_id"):

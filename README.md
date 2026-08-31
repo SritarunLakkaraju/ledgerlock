@@ -58,6 +58,8 @@ make demo SEED=42  # generate -> reconcile -> print headline numbers -> serve AP
 
 Once `make demo` is running: API on `http://127.0.0.1:8000` (docs at `/docs`), UI on `http://localhost:5173`.
 
+**LLM-narrated explanations (optional).** By default the explainer uses deterministic per-reason-code templates. To have Claude narrate the exceptions instead, `cp .env.example .env` and set `ANTHROPIC_API_KEY` (loaded automatically via `python-dotenv`). The numeral guard in `ai/explainer.py` still rejects any model output containing a number that wasn't in its input, falling back to the template -- so the numbers on screen are identical whether or not the key is set.
+
 ## Anomaly catalogue
 
 11 anomaly types, each injected by the generator with a ground-truth label and each caught by the engine with a specific reason code (`tests/test_anomalies.py` asserts every one, end to end, off the real generator output):

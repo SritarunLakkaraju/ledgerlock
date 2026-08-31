@@ -97,3 +97,14 @@ export interface PaginatedMatches {
   total: number
   items: MatchRecord[]
 }
+
+export type SourceTable = 'orders' | 'recon' | 'bank'
+
+export interface SourceRows {
+  table: SourceTable
+  page: number
+  page_size: number
+  total: number
+  columns: string[]
+  items: Record<string, unknown>[]
+}

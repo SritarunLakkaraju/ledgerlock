@@ -14,6 +14,13 @@ import json
 import os
 import re
 
+try:  # optional: load ANTHROPIC_API_KEY (and LEDGERLOCK_AI_MODEL) from a local .env
+    from dotenv import load_dotenv
+
+    load_dotenv()
+except Exception:  # python-dotenv not installed -- env vars still work as normal
+    pass
+
 from engine.models import AIExplanation, Exception_
 from engine.money import format_inr
 
@@ -69,6 +76,21 @@ def _numerals_ok(output_text: str, exc: Exception_) -> bool:
     output_groups = _digits(output_text)
     allowed = _acceptable_input_number_groups(exc)
     return output_groups.issubset(allowed)
+
+
+def _extract_json_object(text: str) -> dict:
+    """The model is told to return bare JSON, but occasionally wraps it in a
+    ```json fence or a sentence. Try a straight parse first, then fall back to
+    the first balanced {...} block."""
+    text = text.strip()
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+    match = re.search(r"\{.*\}", text, re.DOTALL)
+    if not match:
+        raise ValueError("no JSON object in model output")
+    return json.loads(match.group(0))
 
 
 def _code(exc: Exception_) -> str:
@@ -171,16 +193,20 @@ def explain_exception(exc: Exception_) -> AIExplanation:
     try:
         import anthropic
 
-        client = anthropic.Anthropic(api_key=api_key)
+        # identity-linked API keys require the workspace id as a header
+        workspace_id = os.environ.get("ANTHROPIC_WORKSPACE_ID")
+        default_headers = {"anthropic-workspace-id": workspace_id} if workspace_id else None
+        client = anthropic.Anthropic(api_key=api_key, default_headers=default_headers)
         payload = json.dumps(exc.model_dump(exclude={"ai"}), default=str)
         resp = client.messages.create(
             model=MODEL,
-            max_tokens=300,
+            max_tokens=512,
             system=SYSTEM_PROMPT,
+            thinking={"type": "disabled"},  # narration only -- keep the token budget on the JSON
             messages=[{"role": "user", "content": payload}],
         )
         text = "".join(block.text for block in resp.content if getattr(block, "type", None) == "text")
-        parsed = json.loads(text)
+        parsed = _extract_json_object(text)
         explanation = str(parsed["explanation"])
         suggested_action = str(parsed["suggested_action"])
         if not _numerals_ok(explanation + " " + suggested_action, exc):
